@@ -6,7 +6,9 @@
 
 {% macro default__test_sequential_values(model, column_name, interval=1, datepart=None, group_by_columns = []) %}
 
-{% set previous_column_name = "previous_" ~ dbt_utils.slugify(column_name) %}
+{% set column_name_slug = dbt_utils.slugify(column_name) %}
+  
+{% set previous_column_name = "previous_" ~ column_name_slug %}
 
 {% if group_by_columns|length() > 0 %}
   {% set select_gb_cols = group_by_columns|join(',') + ', ' %}
@@ -17,7 +19,7 @@ with windowed as (
 
     select
         {{ select_gb_cols }}
-        {{ column_name }},
+        {{ column_name }} AS {{ column_name_slug }},
         lag({{ column_name }}) over (
             {{partition_gb_cols}}
             order by {{ column_name }}
@@ -30,9 +32,9 @@ validation_errors as (
         *
     from windowed
     {% if datepart %}
-    where not(cast({{ column_name }} as {{ dbt.type_timestamp() }})= cast({{ dbt.dateadd(datepart, interval, previous_column_name) }} as {{ dbt.type_timestamp() }}))
+    where not(cast({{ column_name_slug }} as {{ dbt.type_timestamp() }})= cast({{ dbt.dateadd(datepart, interval, previous_column_name) }} as {{ dbt.type_timestamp() }}))
     {% else %}
-    where not({{ column_name }} = {{ previous_column_name }} + {{ interval }})
+    where not({{ column_name_slug }} = {{ previous_column_name }} + {{ interval }})
     {% endif %}
 )
 
